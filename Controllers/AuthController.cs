@@ -1,5 +1,6 @@
 ﻿using GuestHouseBookingCore.DTO;
 using GuestHouseBookingCore.Models;
+using GuestHouseBookingCore.Repositories;
 using GuestHouseBookingCore.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -14,34 +15,61 @@ namespace GuestHouseBookingCore.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly JwtService _jwtService;
+        private readonly IUserRepository _userRepo;
+        private readonly IRepository<LogTable> _logRepo;
+        private readonly RegisterService _registerService;
 
-        public AuthController(ApplicationDbContext context, JwtService jwtService)
+        public AuthController(ApplicationDbContext context, JwtService jwtService, IUserRepository userRepo, 
+            IRepository<LogTable> logRepo, RegisterService registerService)
         {
             _context = context;
             _jwtService = jwtService;
+            _userRepo = userRepo;
+            _logRepo = logRepo;
+            _registerService = registerService;
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] Users user)
+        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == user.Email)) return
-                    BadRequest("User with this Email Already Exists");
+            if (await _userRepo.GetByEmailOrUsernameAsync(dto.Email) != null)
+                return BadRequest("Email already exists");
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            user.CreatedAt = DateTime.UtcNow;
+            string username;
+            do
+            {
+                username = _registerService.GenerateUsername(dto.EmpName);
+            } while (await _userRepo.GetByEmailOrUsernameAsync(username) != null);
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
+            var user = new Users
+            {
+                EmpName = dto.EmpName,
+                UserName = username,
+                Email = dto.Email,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                CreatedAt = DateTime.UtcNow
+            };
 
-            return Ok(new { Message = "User registered successfully!" });
+            await _userRepo.AddAsync(user);
+            await _userRepo.SaveAsync();
+
+            return Ok(new
+            {
+                Message = "User registered! Auto username generated!",
+                UserName = username
+            });
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody]LoginDto dto)
+        public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                return Unauthorized("Invalid Email or Password");
+            var user = await _userRepo.GetByEmailOrUsernameAsync(dto.EmailOrUsername);
+
+            if (user == null || user.IsDeleted)
+                return Unauthorized("Invalid credentials");
+
+            if (!BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+                return Unauthorized("Invalid credentials");
 
             var token = _jwtService.GenerateToken(user);
 
@@ -49,8 +77,14 @@ namespace GuestHouseBookingCore.Controllers
             {
                 Message = "Login Successful!",
                 Token = token,
-                Role = user.UserRole,
-                UserId = user.UserId
+                User = new
+                {
+                    user.UserId,
+                    user.UserName,
+                    user.EmpName,
+                    user.Email,
+                    Role = user.UserRole.ToString()
+                }
             });
         }
 
@@ -58,15 +92,15 @@ namespace GuestHouseBookingCore.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUserById(int id)
         {
-            //Validation
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)??"0");
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "0");
             var userRole = User.FindFirstValue(ClaimTypes.Role);
 
-            if (userRole != "Admin" && userId != id) return Forbid("You are not allowed to access this user data.");
+            if (userRole != "Admin" && userId != id)
+                return Forbid("Access denied");
 
-            //Logic
-            var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("User Not Found");
+            var user = await _userRepo.GetByIdAsync(id);
+            if (user == null || user.IsDeleted)
+                return NotFound("User not found");
 
             return Ok(new
             {
@@ -116,45 +150,37 @@ namespace GuestHouseBookingCore.Controllers
 
         // 🔹 DELETE (only Admin)
         [HttpDelete("{id}")]
-        [Authorize(Roles="Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>u.UserId == id);
-
-            if (user == null) return NotFound("User not found.");
-
-            if (user.IsDeleted) return BadRequest("User already deleted.");
+            var user = await _userRepo.GetByIdAsync(id);
+            if (user == null) return NotFound();
+            if (user.IsDeleted) return BadRequest("Already deleted");
 
             // SOFT DELETE
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
+            _userRepo.Update(user);
 
+            // LOG ADD KAR → AB _logRepo SE!
             var log = new LogTable
             {
                 UserId = user.UserId,
-                LogType = "User",
                 BookingId = null,
+                LogType = "User",
                 LogAction = LogAction.Delete,
-                LogDetail = $"[SOFT DELETE] User: {user.EmpName} ({user.Email}) marked as deleted.",
+                LogDetail = $"[SOFT DELETE] {user.EmpName} ({user.Email}) at {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
                 LogDate = DateTime.UtcNow
             };
 
-            _context.LogTable.Add(log); // Log add karo
+            await _logRepo.AddAsync(log);      // AB YE CHALEGA!
+            await _logRepo.SaveAsync();        // YE BHI!
 
-            try
+            return Ok(new
             {
-            await _context.SaveChangesAsync();
-            return Ok(new {
-                Message = "User SOFT DELETED successfully!",
-                UserId = user.UserId,
-                DeletedAt = user.DeletedAt
+                Message = "User SOFT DELETED + LOGGED!",
+                UserId = id
             });
-            }
-            catch (DbUpdateException ex)
-            {
-                return StatusCode(500, $"Error: {ex.InnerException?.Message ?? ex.Message}");
-            }
-
         }
     }
 }

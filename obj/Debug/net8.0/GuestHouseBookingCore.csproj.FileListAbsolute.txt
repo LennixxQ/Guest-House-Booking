@@ -169,6 +169,7 @@ C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseB
 C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\GuestHouseBookingCore.csproj.CoreCompileInputs.cache
 C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\GuestHouseBookingCore.MvcApplicationPartsAssemblyInfo.cs
 C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\GuestHouseBookingCore.MvcApplicationPartsAssemblyInfo.cache
+C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\GuestHouseBookingCore.sourcelink.json
 C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\rjimswa.dswa.cache.json
 C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\rjsmrazor.dswa.cache.json
 C:\Users\Vivek\Desktop\Project\Guest House Booking\GuestHouseBooking\GuestHouseBooking\GuestHouseBookingCore\obj\Debug\net8.0\rjsmcshtml.dswa.cache.json

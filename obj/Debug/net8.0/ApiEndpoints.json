@@ -87,8 +87,8 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "user",
-        "Type": "GuestHouseBookingCore.Models.Users",
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.RegisterDto",
         "IsRequired": true
       }
     ],

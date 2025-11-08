@@ -1,11 +1,13 @@
 ﻿using GuestHouseBookingCore;
 using GuestHouseBookingCore.Helpers;
+using GuestHouseBookingCore.Models;
+using GuestHouseBookingCore.Repositories;
 using GuestHouseBookingCore.Services;
-using Microsoft.EntityFrameworkCore;
-using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +15,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IRepository<LogTable>, Repository<LogTable>>();
+builder.Services.AddScoped<RegisterService>();
 
 builder.Services.AddControllers();
 

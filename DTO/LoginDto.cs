@@ -1,8 +1,13 @@
-﻿namespace GuestHouseBookingCore.DTO
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace GuestHouseBookingCore.DTO
 {
     public class LoginDto
     {
-        public string Email { get; set; }
+        [Required]
+        public string EmailOrUsername { get; set; }
+
+        [Required]
         public string Password { get; set; }
     }
 }
