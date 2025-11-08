@@ -19,6 +19,7 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRepository<LogTable>, Repository<LogTable>>();
 builder.Services.AddScoped<RegisterService>();
+builder.Services.AddScoped<EmailService>();
 
 builder.Services.AddControllers();
 

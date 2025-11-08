@@ -18,15 +18,18 @@ namespace GuestHouseBookingCore.Controllers
         private readonly IUserRepository _userRepo;
         private readonly IRepository<LogTable> _logRepo;
         private readonly RegisterService _registerService;
+        private readonly EmailService _emailService;
 
         public AuthController(ApplicationDbContext context, JwtService jwtService, IUserRepository userRepo, 
-            IRepository<LogTable> logRepo, RegisterService registerService)
+            IRepository<LogTable> logRepo, RegisterService registerService, EmailService emailService)
         {
             _context = context;
             _jwtService = jwtService;
             _userRepo = userRepo;
             _logRepo = logRepo;
             _registerService = registerService;
+            _emailService = emailService;
+
         }
 
         [HttpPost("register")]
@@ -41,6 +44,7 @@ namespace GuestHouseBookingCore.Controllers
                 username = _registerService.GenerateUsername(dto.EmpName);
             } while (await _userRepo.GetByEmailOrUsernameAsync(username) != null);
 
+            var tempPassword = dto.Password;
             var user = new Users
             {
                 EmpName = dto.EmpName,
@@ -53,9 +57,16 @@ namespace GuestHouseBookingCore.Controllers
             await _userRepo.AddAsync(user);
             await _userRepo.SaveAsync();
 
+            // EMAIL SENT
+            await _emailService.SendWelcomeEmail(
+                toEmail: dto.Email,
+                username: username,
+                tempPassword: tempPassword
+            );
+
             return Ok(new
             {
-                Message = "User registered! Auto username generated!",
+                Message = "User registered! Auto username generated! + Email Sent",
                 UserName = username
             });
         }
