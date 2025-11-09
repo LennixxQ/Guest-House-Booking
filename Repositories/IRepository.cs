@@ -1,4 +1,6 @@
-﻿namespace GuestHouseBookingCore.Repositories
+﻿using System.Linq.Expressions;
+
+namespace GuestHouseBookingCore.Repositories
 {
     public interface IRepository<T> where T:class
     {

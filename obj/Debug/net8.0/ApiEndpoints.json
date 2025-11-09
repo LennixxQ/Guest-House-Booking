@@ -1,5 +1,79 @@
 [
   {
+    "ContainingType": "GuestHouseBookingCore.Controllers.RoomMasterController",
+    "Method": "UpdateRoom",
+    "RelativePath": "api/admin/room-master/{roomId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roomId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.UpdateRoomDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.RoomMasterController",
+    "Method": "DeleteRoom",
+    "RelativePath": "api/admin/room-master/{roomId}",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roomId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.RoomMasterController",
+    "Method": "AddRoom",
+    "RelativePath": "api/admin/room-master/guesthouse/{guestHouseId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "guestHouseId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.AddRoomDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.RoomMasterController",
+    "Method": "GetRooms",
+    "RelativePath": "api/admin/room-master/guesthouse/{guestHouseId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "guestHouseId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "GuestHouseBookingCore.Controllers.AuthController",
     "Method": "GetUserById",
     "RelativePath": "api/Auth/{id}",
