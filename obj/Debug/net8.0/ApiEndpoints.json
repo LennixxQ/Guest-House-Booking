@@ -329,6 +329,37 @@
   },
   {
     "ContainingType": "GuestHouseBookingCore.Controllers.BookingController",
+    "Method": "GetAvailableBeds",
+    "RelativePath": "api/bookings/available-beds",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "guestHouseId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "roomId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "startDate",
+        "Type": "System.DateTime",
+        "IsRequired": false
+      },
+      {
+        "Name": "endDate",
+        "Type": "System.DateTime",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingController",
     "Method": "CreateBooking",
     "RelativePath": "api/bookings/create",
     "HttpMethod": "POST",

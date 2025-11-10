@@ -102,5 +102,44 @@ namespace GuestHouseBookingCore.Controllers
                 BookingId = booking.BookingId
             });
         }
+
+        //JQuery Used
+        [HttpGet("available-beds")]
+        [Authorize(Policy = "AdminOrGuest")]
+        public async Task<IActionResult> GetAvailableBeds([FromQuery] int guestHouseId, [FromQuery] int roomId,
+            [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+        {
+            if (guestHouseId <= 0 || roomId <= 0 || startDate >= endDate)
+                return BadRequest("Invalid parameters.");
+
+            var allBeds = _bedRepo.GetAll()
+                .Where(b => b.RoomId == roomId && b.IsActive)
+                .Select(b => new { b.BedId, b.BedLabel });
+
+            var allBedsList = await allBeds.ToListAsync();
+            if (!allBedsList.Any())
+                return Ok(new List<AvailableBedsDto>());
+
+            var bookedBedIds = await _context.Bookings
+                .Where(b =>
+                    b.RoomId == roomId &&
+                    b.Status == BookingStatus.Accepted &&
+                    b.StartDate < endDate &&
+                    b.EndDate > startDate)
+                .Select(b => b.BedId)
+                .ToListAsync();
+
+            var availableBeds = allBedsList
+                .Select(b => new AvailableBedsDto
+                {
+                    BedId = b.BedId,
+                    BedLabel = b.BedLabel,
+                    IsAvailable = !bookedBedIds.Contains(b.BedId)
+                })
+                .OrderBy(b => b.BedLabel)
+                .ToList();
+
+            return Ok(availableBeds);
+        }
     }
 }
