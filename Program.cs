@@ -20,6 +20,9 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRepository<LogTable>, Repository<LogTable>>();
 builder.Services.AddScoped<RegisterService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<IRepository<Rooms>, Repository<Rooms>>();  //
+builder.Services.AddScoped<IRepository<Beds>, Repository<Beds>>();
+
 
 builder.Services.AddControllers();
 

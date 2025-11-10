@@ -163,6 +163,111 @@
         }
       }
     },
+    "/api/admin/bed-master/room/{roomId}": {
+      "post": {
+        "tags": [
+          "BedMaster"
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBedDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBedDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBedDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "BedMaster"
+        ],
+        "parameters": [
+          {
+            "name": "roomId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/bed-master/{bedId}": {
+      "put": {
+        "tags": [
+          "BedMaster"
+        ],
+        "parameters": [
+          {
+            "name": "bedId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBedDto"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBedDto"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBedDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/admin/room-master/guesthouse/{guestHouseId}": {
       "post": {
         "tags": [
@@ -292,6 +397,27 @@
   },
   "components": {
     "schemas": {
+      "AddBedDto": {
+        "required": [
+          "bedLabel"
+        ],
+        "type": "object",
+        "properties": {
+          "bedLabel": {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BedStatus"
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "AddRoomDto": {
         "required": [
           "capacity",
@@ -314,6 +440,14 @@
           }
         },
         "additionalProperties": false
+      },
+      "BedStatus": {
+        "enum": [
+          0,
+          1
+        ],
+        "type": "integer",
+        "format": "int32"
       },
       "LoginDto": {
         "required": [
@@ -363,6 +497,23 @@
         ],
         "type": "integer",
         "format": "int32"
+      },
+      "UpdateBedDto": {
+        "type": "object",
+        "properties": {
+          "bedLabel": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "$ref": "#/components/schemas/BedStatus"
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "UpdateRoomDto": {
         "type": "object",

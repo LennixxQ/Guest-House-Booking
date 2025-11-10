@@ -1,5 +1,63 @@
 [
   {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BedMasterController",
+    "Method": "UpdateBed",
+    "RelativePath": "api/admin/bed-master/{bedId}",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "bedId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.Models.UpdateBedDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BedMasterController",
+    "Method": "AddBed",
+    "RelativePath": "api/admin/bed-master/room/{roomId}",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roomId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.AddBedDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BedMasterController",
+    "Method": "GetBeds",
+    "RelativePath": "api/admin/bed-master/room/{roomId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "roomId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "GuestHouseBookingCore.Controllers.RoomMasterController",
     "Method": "UpdateRoom",
     "RelativePath": "api/admin/room-master/{roomId}",
