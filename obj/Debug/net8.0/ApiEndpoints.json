@@ -59,22 +59,6 @@
   },
   {
     "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
-    "Method": "GetAllBookings",
-    "RelativePath": "api/admin/bookings",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "status",
-        "Type": "System.String",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
     "Method": "AcceptBooking",
     "RelativePath": "api/admin/bookings/{bookingId}/accept",
     "HttpMethod": "PUT",
@@ -105,6 +89,22 @@
       {
         "Name": "dto",
         "Type": "GuestHouseBookingCore.DTO.RejectBookingDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
+    "Method": "CreateBooking",
+    "RelativePath": "api/admin/bookings/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.CreateBookingDto",
         "IsRequired": true
       }
     ],
@@ -274,6 +274,22 @@
       {
         "Name": "dto",
         "Type": "GuestHouseBookingCore.DTO.RegisterDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingController",
+    "Method": "CreateBooking",
+    "RelativePath": "api/bookings/create",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.CreateBookingDto",
         "IsRequired": true
       }
     ],

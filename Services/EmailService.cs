@@ -33,8 +33,8 @@ namespace GuestHouseBookingCore.Services
         }
 
         public async Task SendBookingStatusEmail(
-    string toEmail, string userName, string status, string room, string bed,
-    DateTime checkIn, DateTime checkOut, string adminName, string? reason = null)
+            string toEmail, string userName, string status, string room, string bed,
+            DateTime checkIn, DateTime checkOut, string adminName, string? reason = null)
         {
             var fromEmail = _config["Email:From"];
             var password = _config["Email:Password"];
@@ -64,6 +64,54 @@ namespace GuestHouseBookingCore.Services
             };
 
             await client.SendMailAsync(message);
+        }
+
+        public async Task SendNewBookingAlertToAdmin(
+    string toEmail, string userName, string guestHouse, string room, string bed,
+    DateTime checkIn, DateTime checkOut, string purpose)
+        {
+            var fromEmail = _config["Email:From"];
+            var password = _config["Email:Password"];
+            var smtpServer = _config["Email:SmtpServer"];
+            var smtpPort = int.Parse(_config["Email:Port"]);
+
+            // DEBUG LOG
+            Console.WriteLine($"Sending email from: {fromEmail} to: {toEmail}");
+
+            var subject = "New Booking Request!";
+            var body = $"<h3>New Booking Alert!</h3>" +
+                       $"<p><b>User:</b> {userName}</p>" +
+                       $"<p><b>Guest House:</b> {guestHouse}<br>" +
+                       $"<b>Room:</b> {room}<br>" +
+                       $"<b>Bed:</b> {bed}<br>" +
+                       $"<b>Check-in:</b> {checkIn:dd MMM yyyy}<br>" +
+                       $"<b>Check-out:</b> {checkOut:dd MMM yyyy}</p>" +
+                       $"<p><b>Purpose:</b> {purpose}</p>" +
+                       $"<p><a href='https://localhost:4200/admin/bookings'>View in Admin Panel</a></p>";
+
+            var message = new MailMessage(fromEmail, toEmail)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(fromEmail, password),
+                EnableSsl = true
+            };
+
+            try
+            {
+                await client.SendMailAsync(message);
+                Console.WriteLine($"EMAIL SENT to {toEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"EMAIL FAILED: {ex.Message}");
+                throw; // DEBUG KE LIYE THROW KAR
+            }
         }
     }
 }

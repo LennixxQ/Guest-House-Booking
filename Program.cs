@@ -26,7 +26,11 @@ builder.Services.AddScoped<IRepository<Beds>, Repository<Beds>>();
 builder.Services.AddScoped<IRepository<Bookings>, Repository<Bookings>>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<GetCurrentAdmin>();
-
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOrGuest", policy =>
+        policy.RequireRole("Admin", "Guest"));
+});
 
 builder.Services.AddControllers();
 

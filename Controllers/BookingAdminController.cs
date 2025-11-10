@@ -41,45 +41,60 @@ namespace GuestHouseBookingCore.Controllers
         }
 
         // 1. GET ALL BOOKINGS (WITH FILTER)
-        [HttpGet]
-        public async Task<IActionResult> GetAllBookings([FromQuery] string status = "all")
+        [HttpPost("create")]
+        [Authorize(Roles = "Guest")]
+        public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDto dto)
         {
-            var query = _context.Bookings
-                .Include(b => b.User)
-                .Include(b => b.GuestHouse)
-                .Include(b => b.Room)
-                .Include(b => b.Bed)
-                .AsQueryable();
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return Unauthorized();
 
-            if (status.ToLower() == "pending")
-                query = query.Where(b => b.Status == BookingStatus.Pending);
-            else if (status.ToLower() == "accepted")
-                query = query.Where(b => b.Status == BookingStatus.Accepted);
-            else if (status.ToLower() == "rejected")
-                query = query.Where(b => b.Status == BookingStatus.Rejected);
+            var booking = new Bookings
+            {
+                UserId = userId,
+                GuestHouseId = dto.GuestHouseId,
+                RoomId = dto.RoomId,
+                BedId = dto.BedId,
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                PurposeOfVisit = dto.PurposeOfVisit,
+                Status = BookingStatus.Pending,
+                CreatedDate = DateTime.UtcNow,
+                CreatedBy = user.EmpName
+            };
 
-            var bookings = await query
-                .Select(b => new
-                {
-                    b.BookingId,
-                    UserName = b.User != null ? b.User.EmpName : "Unknown",
-                    GuestHouse = b.GuestHouse != null ? b.GuestHouse.GuestHouseName : "N/A",
-                    Room = b.Room != null ? b.Room.RoomNumber : "N/A",
-                    Bed = b.Bed != null ? b.Bed.BedLabel : "N/A",
-                    b.StartDate,
-                    b.EndDate,
-                    b.PurposeOfVisit,
-                    b.Status,
-                    b.CreatedDate,
-                    b.CreatedBy,
-                    b.ModifiedDate,
-                    b.ModifiedBy,
-                    LogCount = b.Logs.Count
-                })
-                .OrderByDescending(b => b.CreatedDate)
+            await _bookingRepo.AddAsync(booking);
+            await _bookingRepo.SaveAsync();
+
+            // ADMIN KO EMAIL BHEJ
+            var adminEmails = await _context.Users
+                .Where(u => u.UserRole == Role.Admin && u.IsDeleted == false)
+                .Select(u => u.Email)
                 .ToListAsync();
 
-            return Ok(bookings);
+            foreach (var adminEmail in adminEmails)
+            {
+                try
+                {
+                    await _emailService.SendNewBookingAlertToAdmin(
+                        toEmail: adminEmail,
+                        userName: user.EmpName,
+                        guestHouse: (await _ghRepo.GetByIdAsync(dto.GuestHouseId))?.GuestHouseName ?? "N/A",
+                        room: (await _roomRepo.GetByIdAsync(dto.RoomId))?.RoomNumber ?? "N/A",
+                        bed: dto.BedId.HasValue ? (await _bedRepo.GetByIdAsync(dto.BedId.Value))?.BedLabel ?? "N/A" : "N/A",
+                        checkIn: dto.StartDate,
+                        checkOut: dto.EndDate,
+                        purpose: dto.PurposeOfVisit
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // LOG KAR — EMAIL FAIL HUA TO BHI BOOKING SAVE RAHE
+                    Console.WriteLine($"Admin email failed: {ex.Message}");
+                }
+            }
+
+            return Ok(new { Message = "Booking request sent! Admin has been notified.", BookingId = booking.BookingId });
         }
 
         // 2. APPROVE BOOKING
