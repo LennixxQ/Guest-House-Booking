@@ -31,5 +31,39 @@ namespace GuestHouseBookingCore.Services
 
             await client.SendMailAsync(message);
         }
+
+        public async Task SendBookingStatusEmail(
+    string toEmail, string userName, string status, string room, string bed,
+    DateTime checkIn, DateTime checkOut, string adminName, string? reason = null)
+        {
+            var fromEmail = _config["Email:From"];
+            var password = _config["Email:Password"];
+            var smtpServer = _config["Email:SmtpServer"];
+            var smtpPort = int.Parse(_config["Email:Port"]);
+
+            var subject = $"Your Booking Request has been {status}!";
+            var body = status == "Accepted"
+                ? $"<h2>Great News, {userName}!</h2><p>Your booking has been <strong>APPROVED</strong> by <strong>{adminName}</strong>.</p>"
+                : $"<h2>Sorry, {userName}</h2><p>Your booking has been <strong>REJECTED</strong> by <strong>{adminName}</strong>.</p><p><strong>Reason:</strong> {reason}</p>";
+
+            body += $"<p><strong>Room:</strong> {room}<br><strong>Bed:</strong> {bed}<br>" +
+                    $"<strong>Check-in:</strong> {checkIn:dd MMM yyyy}<br>" +
+                    $"<strong>Check-out:</strong> {checkOut:dd MMM yyyy}</p>";
+
+            var message = new MailMessage(fromEmail, toEmail)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(fromEmail, password),
+                EnableSsl = true
+            };
+
+            await client.SendMailAsync(message);
+        }
     }
 }

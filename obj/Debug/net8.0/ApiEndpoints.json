@@ -58,6 +58,59 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
+    "Method": "GetAllBookings",
+    "RelativePath": "api/admin/bookings",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
+    "Method": "AcceptBooking",
+    "RelativePath": "api/admin/bookings/{bookingId}/accept",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "bookingId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
+    "Method": "RejectBooking",
+    "RelativePath": "api/admin/bookings/{bookingId}/reject",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "bookingId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      },
+      {
+        "Name": "dto",
+        "Type": "GuestHouseBookingCore.DTO.RejectBookingDto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "GuestHouseBookingCore.Controllers.RoomMasterController",
     "Method": "UpdateRoom",
     "RelativePath": "api/admin/room-master/{roomId}",
