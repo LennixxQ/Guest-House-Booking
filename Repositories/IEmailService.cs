@@ -7,5 +7,7 @@
             DateTime checkOut, string adminName, string? reason = null);
         Task SendNewBookingAlertToAdmin(string toEmail, string userName, string guestHouse, string room, string bed, DateTime checkIn, 
             DateTime checkOut, string purpose);
+        Task SendPasswordChangedEmail(string toEmail, string userName);
+        Task SendPasswordResetEmail(string toEmail, string userName, string resetLink);
     }
 }

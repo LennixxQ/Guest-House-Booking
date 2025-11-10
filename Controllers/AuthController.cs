@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 namespace GuestHouseBookingCore.Controllers
 {
@@ -192,6 +193,108 @@ namespace GuestHouseBookingCore.Controllers
                 Message = "User SOFT DELETED + LOGGED!",
                 UserId = id
             });
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return Unauthorized();
+
+            // Verify current password
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { Message = "Current password is incorrect" });
+
+            // Update password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _userRepo.Update(user);
+            await _userRepo.SaveAsync();
+
+            // EMAIL BHEJ DO USER KO
+            try
+            {
+                await _emailService.SendPasswordChangedEmail(
+                    toEmail: user.Email,
+                    userName: user.EmpName
+                );
+            }
+            catch (Exception ex)
+            {
+                // Email fail hua to bhi password change ho gaya — log kar
+                Console.WriteLine($"Password change email failed: {ex.Message}");
+            }
+
+            return Ok(new { Message = "Password changed successfully! A confirmation email has been sent." });
+        }
+
+        // 1. FORGOT PASSWORD — SEND EMAIL WITH TOKEN
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var user = await _userRepo.GetByEmailOrUsernameAsync(dto.Email);
+            if (user == null || user.IsDeleted)
+                return Ok(new { Message = "If email exists, a reset link has been sent." });
+
+            var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var expiry = DateTime.UtcNow.AddHours(1);
+
+            user.PasswordResetToken = token;
+            user.PasswordResetExpiry = expiry;
+            _userRepo.Update(user);
+            await _userRepo.SaveAsync();
+
+            var resetLink = $"https://localhost:4200/reset-password?token={token}&email={Uri.EscapeDataString(dto.Email)}";
+
+            try
+            {
+                await _emailService.SendPasswordResetEmail(
+                    toEmail: dto.Email,
+                    userName: user.EmpName,
+                    resetLink: resetLink
+                );
+            }
+            catch { }
+
+            return Ok(new { Message = "If email exists, a reset link has been sent." });
+        }
+
+        // 2. RESET PASSWORD — VALIDATE TOKEN & UPDATE
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var user = await _context.Users
+                .FirstOrDefaultAsync(u =>
+                    u.PasswordResetToken == dto.Token &&
+                    u.PasswordResetExpiry > DateTime.UtcNow &&
+                    !u.IsDeleted);
+
+            if (user == null)
+                return BadRequest(new { Message = "Invalid or expired token." });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.PasswordResetToken = null;
+            user.PasswordResetExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            _userRepo.Update(user);
+            await _userRepo.SaveAsync();
+
+            try
+            {
+                await _emailService.SendPasswordChangedEmail(user.Email, user.EmpName);
+            }
+            catch { }
+
+            return Ok(new { Message = "Password reset successfully!" });
         }
     }
 }

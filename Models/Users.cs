@@ -31,5 +31,10 @@ namespace GuestHouseBookingCore.Models
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
         public ICollection<Bookings>? Bookings { get; set; } = new List<Bookings>();
+
+        //New Fields
+
+        public string? PasswordResetToken { get; set; }
+        public DateTime? PasswordResetExpiry { get; set; }
     }
 }

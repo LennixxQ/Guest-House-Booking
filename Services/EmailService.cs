@@ -113,5 +113,72 @@ namespace GuestHouseBookingCore.Services
                 throw; // DEBUG KE LIYE THROW KAR
             }
         }
+
+        public async Task SendPasswordChangedEmail(string toEmail, string userName)
+        {
+            var fromEmail = _config["Email:From"];
+            var password = _config["Email:Password"];
+            var smtpServer = _config["Email:SmtpServer"];
+            var smtpPort = int.Parse(_config["Email:Port"]);
+
+            var subject = "Password Changed Successfully";
+            var body = $@"
+        <h2>Hello {userName},</h2>
+        <p>Your password has been <strong>successfully changed</strong>.</p>
+        <p><strong>Time:</strong> {DateTime.Now:dd MMM yyyy, hh:mm tt} (IST)</p>
+        <p>If you did not make this change, please contact admin immediately.</p>
+        <hr>
+        <p><small>Guest House Booking System</small></p>";
+
+            var message = new MailMessage(fromEmail, toEmail)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(fromEmail, password),
+                EnableSsl = true
+            };
+
+            await client.SendMailAsync(message);
+        }
+
+        public async Task SendPasswordResetEmail(string toEmail, string userName, string resetLink)
+        {
+            var fromEmail = _config["Email:From"];
+            var password = _config["Email:Password"];
+            var smtpServer = _config["Email:SmtpServer"];
+            var smtpPort = int.Parse(_config["Email:Port"]);
+
+            var subject = "Reset Your Password";
+            var body = $@"
+        <h2>Hello {userName},</h2>
+        <p>We received a request to reset your password.</p>
+        <p><a href='{resetLink}' style='background:#007bff;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;'>
+            Reset Password
+        </a></p>
+        <p><small>Link expires in 1 hour.</small></p>
+        <p>If you didn't request this, ignore this email.</p>
+        <hr>
+        <small>Guest House Booking System</small>";
+
+            var message = new MailMessage(fromEmail, toEmail)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(fromEmail, password),
+                EnableSsl = true
+            };
+
+            await client.SendMailAsync(message);  // YE SAHI HAI
+        }
     }
 }
