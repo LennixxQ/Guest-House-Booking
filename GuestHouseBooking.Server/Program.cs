@@ -89,6 +89,39 @@ app.UseHttpsRedirection();
 app.UseAuthentication();  // YE PEHLE
 app.UseAuthorization();   // YE BAAD MEIN
 
+using (var scope = app.Services.CreateScope())
+{
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    try
+    {
+        context.Database.Migrate(); // DB + migrations
+
+        // Seed Admin
+        if (!context.Users.Any(u => u.UserRole == Role.Admin))
+        {
+            context.Users.Add(new Users
+            {
+                EmpName = "Vivek Chauhan",
+                UserName = "vivekaAdmin",
+                Email = "chauhanvivek1800@gmail.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("palakgbade05"),
+                UserRole = Role.Admin,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            });
+            context.SaveChanges();
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "DB SEEDING FAILED");
+    }
+}
+
+app.Run();
+
 app.MapControllers();
 app.Run();
 
