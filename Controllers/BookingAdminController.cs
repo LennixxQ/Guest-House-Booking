@@ -24,10 +24,11 @@ namespace GuestHouseBookingCore.Controllers
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly GetCurrentAdmin _getCurrentAdmin;
         private readonly EmailService _emailService;
+        private readonly ILogService _logService;
 
         public BookingAdminController(IRepository<Bookings> bookingRepo, IRepository<Users> userRepo, IRepository<GuestHouses> ghRepo,
             IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor,
-            GetCurrentAdmin getCurrentAdmin, EmailService emailService)
+            GetCurrentAdmin getCurrentAdmin, EmailService emailService, ILogService logService)
         {
             _bookingRepo = bookingRepo;
             _userRepo = userRepo;
@@ -38,6 +39,7 @@ namespace GuestHouseBookingCore.Controllers
             _httpContextAccessor = httpContextAccessor;
             _getCurrentAdmin = getCurrentAdmin;
             _emailService = emailService;
+            _logService = logService;
         }
 
         // 1. GET ALL BOOKINGS (WITH FILTER)
@@ -101,7 +103,6 @@ namespace GuestHouseBookingCore.Controllers
         [HttpPut("{bookingId}/accept")]
         public async Task<IActionResult> AcceptBooking(int bookingId)
         {
-            // YE LINE CHANGE KIYA — INCLUDE KIYA
             var booking = await _context.Bookings
                 .Include(b => b.User)
                 .Include(b => b.Room)
@@ -130,6 +131,16 @@ namespace GuestHouseBookingCore.Controllers
 
             _bookingRepo.Update(booking);
             await _bookingRepo.SaveAsync();
+
+            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+
+            //Log
+            await _logService.LogBookingChangeAsync(
+                bookingId: booking.BookingId,
+                userId: adminId,
+                action: LogAction.Update,
+                detail: $"Booking approved by Admin"
+                );
 
             // AB USER EMAIL MIL GAYA!
             var userEmail = booking.User?.Email;
@@ -186,6 +197,16 @@ namespace GuestHouseBookingCore.Controllers
 
             _bookingRepo.Update(booking);
             await _bookingRepo.SaveAsync();
+
+            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+
+            // LOG: Booking Rejected
+            await _logService.LogBookingChangeAsync(
+                bookingId: booking.BookingId,
+                userId: adminId,
+                action: LogAction.Update,
+                detail: $"Booking rejected by Admin: {dto.Reason}"
+            );
 
             var userEmail = booking.User?.Email;
             if (!string.IsNullOrEmpty(userEmail))

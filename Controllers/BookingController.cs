@@ -25,9 +25,10 @@ namespace GuestHouseBookingCore.Controllers
         private readonly GetCurrentAdmin _getCurrentAdmin;
         private readonly EmailService _emailService;
         private readonly GetAvailableBeds _getAvailableBeds;
+        private readonly ILogService _logService;
         public BookingController(IRepository<Bookings> bookingRepo, IRepository<Users> userRepo, IRepository<GuestHouses> ghRepo,
             IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor,
-            GetCurrentAdmin getCurrentAdmin, EmailService emailService, GetAvailableBeds getAvailableBeds)
+            GetCurrentAdmin getCurrentAdmin, EmailService emailService, GetAvailableBeds getAvailableBeds, ILogService logService)
         {
             _bookingRepo = bookingRepo;
             _userRepo = userRepo;
@@ -39,6 +40,7 @@ namespace GuestHouseBookingCore.Controllers
             _getCurrentAdmin = getCurrentAdmin;
             _emailService = emailService;
             _getAvailableBeds = getAvailableBeds;
+            _logService = logService;
         }
 
         [HttpPost("create")]
@@ -105,6 +107,15 @@ namespace GuestHouseBookingCore.Controllers
 
             await _bookingRepo.AddAsync(booking);
             await _bookingRepo.SaveAsync();
+
+
+            //Log
+            await _logService.LogBookingChangeAsync(
+                bookingId: booking.BookingId,
+                userId: userId,
+                action: LogAction.Create,
+                detail: $"Booking created for {user.EmpName} in Room {rm.RoomNumber}, Bed: {bd?.BedLabel ?? "N/A"}"
+                );
 
             // === ADMIN EMAIL ===
             var adminEmails = await _context.Users
