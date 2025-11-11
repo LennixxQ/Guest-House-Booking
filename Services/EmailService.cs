@@ -123,12 +123,12 @@ namespace GuestHouseBookingCore.Services
 
             var subject = "Password Changed Successfully";
             var body = $@"
-        <h2>Hello {userName},</h2>
-        <p>Your password has been <strong>successfully changed</strong>.</p>
-        <p><strong>Time:</strong> {DateTime.Now:dd MMM yyyy, hh:mm tt} (IST)</p>
-        <p>If you did not make this change, please contact admin immediately.</p>
-        <hr>
-        <p><small>Guest House Booking System</small></p>";
+                <h2>Hello {userName},</h2>
+                <p>Your password has been <strong>successfully changed</strong>.</p>
+                <p><strong>Time:</strong> {DateTime.Now:dd MMM yyyy, hh:mm tt} (IST)</p>
+                <p>If you did not make this change, please contact admin immediately.</p>
+                <hr>
+                <p><small>Guest House Booking System</small></p>";
 
             var message = new MailMessage(fromEmail, toEmail)
             {
@@ -179,6 +179,49 @@ namespace GuestHouseBookingCore.Services
             };
 
             await client.SendMailAsync(message);  // YE SAHI HAI
+        }
+
+        public async Task SendBookingPendingEmailToUser(
+    string toEmail, string userName, string guestHouse, string room, string bed,
+    DateTime checkIn, DateTime checkOut, string purpose)
+        {
+            var fromEmail = _config["Email:From"];
+            var password = _config["Email:Password"];
+            var smtpServer = _config["Email:SmtpServer"];
+            var smtpPort = int.Parse(_config["Email:Port"]);
+
+            var subject = "Your Booking Request is Under Review";
+            var body = $@"
+        <h2>Hello {userName},</h2>
+        <p>Thank you for your booking request!</p>
+        <p><strong>Status:</strong> <span style='color:orange;font-weight:bold;'>PENDING</span></p>
+        <p>Your request has been sent to the admin for approval.</p>
+        <hr>
+        <p><b>Booking Details:</b></p>
+        <p><b>Guest House:</b> {guestHouse}<br>
+           <b>Room:</b> {room}<br>
+           <b>Bed:</b> {bed}<br>
+           <b>Check-in:</b> {checkIn:dd MMM yyyy}<br>
+           <b>Check-out:</b> {checkOut:dd MMM yyyy}</p>
+        <p><b>Purpose:</b> {purpose}</p>
+        <hr>
+        <p><small>You will receive another email once the admin <strong>approves</strong> or <strong>rejects</strong> your request.</small></p>
+        <p><a href='https://localhost:4200/user/bookings'>View My Bookings</a></p>";
+
+            var message = new MailMessage(fromEmail, toEmail)
+            {
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            using var client = new SmtpClient(smtpServer, smtpPort)
+            {
+                Credentials = new NetworkCredential(fromEmail, password),
+                EnableSsl = true
+            };
+
+            await client.SendMailAsync(message);
         }
     }
 }
