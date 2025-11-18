@@ -225,5 +225,79 @@ namespace GuestHouseBookingCore.Controllers
             }
             return Ok(new { Message = "Booking rejected & email sent!", ModifiedBy = adminName, Reason = dto.Reason });
         }
+
+        [HttpGet("admin/pending")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetPendingBookings(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+
+            var query = _bookingRepo.GetAll()
+                .Where(b => b.Status == BookingStatus.Pending)
+                .Include(b => b.User)
+                .Include(b => b.Room)
+                .Include(b => b.Bed)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                search = search.ToLower();
+                query = query.Where(b =>
+                    b.User.EmpName.ToLower().Contains(search) ||
+                    b.User.Email.ToLower().Contains(search) ||
+                    b.Room.RoomNumber.Contains(search)
+                );
+            }
+
+            var total = await query.CountAsync();
+
+            var bookings = await query
+                .OrderByDescending(b => b.CreatedDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(b => new
+                {
+                    bookingId = b.BookingId,
+                    userName = b.User.EmpName,
+                    checkIn = b.StartDate.ToString("yyyy-MM-dd"),
+                    status = b.Status.ToString(),
+                    roomNumber = b.Room.RoomNumber,
+                    bedLabel = b.Bed != null ? b.Bed.BedLabel : null
+                })
+                .ToListAsync();
+
+            return Ok(new { data = bookings, total });
+        }
+
+        [HttpGet("stats")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetDashboardStats()
+        {
+            var totalBookings = await _bookingRepo.GetAll().CountAsync();
+            var pendingBookings = await _bookingRepo.GetAll().CountAsync(b => b.Status == BookingStatus.Pending);
+
+            var totalBeds = await _bedRepo.GetAll().CountAsync(b => b.IsActive);
+            var occupiedBeds = await _bookingRepo.GetAll()
+                .Where(b => b.Status == BookingStatus.Accepted && b.StartDate <= DateTime.Today && b.EndDate >= DateTime.Today
+                && b.BedId != null)
+                .Select(b => b.BedId.Value)
+                .Distinct()
+                .CountAsync();
+
+            var occupancyRate = totalBeds > 0 ? Math.Round((double)occupiedBeds / totalBeds * 100, 2) : 0;
+
+            var stats = new
+            {
+                totalBookings,
+                pendingBookings,
+                occupancyRate
+            };
+
+            return Ok(new { data = stats });
+        }
     }
 }

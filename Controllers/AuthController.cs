@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 namespace GuestHouseBookingCore.Controllers
 {
     [Route("api/[controller]")]
+    [ApiController]
     public class AuthController : Controller
     {
         private readonly ApplicationDbContext _context;

@@ -39,6 +39,7 @@ builder.Services.AddScoped<ILogService, LogService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<GetCurrentAdmin>();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var key = Encoding.UTF8.GetBytes(jwtSettings.Key);
@@ -75,10 +76,24 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// CORS Policy - Allow Angular Frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")  // ← Tera Frontend
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Agar cookies ya auth headers bhej rahe ho
+    });
+});
+
 var app = builder.Build();
+app.UseCors("AllowAngularApp");
 
 // Pipeline
 if (app.Environment.IsDevelopment())
+
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -119,8 +134,6 @@ using (var scope = app.Services.CreateScope())
         logger.LogError(ex, "DB SEEDING FAILED");
     }
 }
-
-app.Run();
 
 app.MapControllers();
 app.Run();

@@ -14,8 +14,15 @@ namespace GuestHouseBookingCore.Models
 
         [Required]
         public string RoomNumber { get; set; }
-        public int Floor { get; set; }
+        public string? Floor { get; set; }
         public int Capacity { get; set; }
+        public bool IsActive { get; set; } = true;
+        public string? CreatedBy { get; set; }
+        public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
+        public string? ModifiedBy { get; set; }
+        public DateTime? ModifiedOn { get; set; }
+        public string? DeletedBy { get; set; }
+        public DateTime? DeletedOn { get; set; }
 
         public ICollection<Beds>? Beds { get; set; } = new List<Beds>();
     }

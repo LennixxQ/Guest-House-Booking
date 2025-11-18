@@ -1,4 +1,5 @@
 ﻿using GuestHouseBookingCore.DTO;
+using GuestHouseBookingCore.Helpers;
 using GuestHouseBookingCore.Models;
 using GuestHouseBookingCore.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -15,12 +16,15 @@ namespace GuestHouseBookingCore.Controllers
         private readonly IRepository<Rooms> _roomRepo;
         private readonly IRepository<Beds> _bedRepo;
         private readonly ApplicationDbContext _context;
+        private readonly GetCurrentAdmin _getCurrentAdmin;
 
-        public BedMasterController(IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context)
+        public BedMasterController(IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context,
+            GetCurrentAdmin getCurrentAdmin)
         {
             _roomRepo = roomRepo;
             _bedRepo = bedRepo;
             _context = context;
+            _getCurrentAdmin = getCurrentAdmin;
         }
 
         [HttpPost("room/{roomId}")]
@@ -29,11 +33,13 @@ namespace GuestHouseBookingCore.Controllers
             var room = await _roomRepo.GetByIdAsync(roomId);
             if (room == null) return NotFound("Room not found.");
 
+            var status = Enum.Parse<BedStatus>(dto.Status, true);
+
             var bed = new Beds
             {
                 RoomId = roomId,
                 BedLabel = dto.BedLabel,
-                Status = dto.Status ?? BedStatus.Vacant,
+                Status = status,
                 IsActive = dto.IsActive ?? true,
                 CreatedDate = DateTime.UtcNow
             };
@@ -59,18 +65,18 @@ namespace GuestHouseBookingCore.Controllers
             if (room == null) return NotFound("Room not found");
 
             var beds = await _context.Beds
-                .Include(b => b.Bookings)
                 .Where(b => b.RoomId == roomId)
                 .Select(b => new
                 {
                     b.BedId,
                     b.BedLabel,
-                    b.Status,
+                    Status = b.Status.ToString(),
                     b.IsActive, 
                     b.CreatedDate,
                     b.ModifiedDate,
                     BookingCount = b.Bookings.Count,
-                    Room = room.RoomNumber
+                    RoomNumber = room.RoomNumber,
+                    RoomCapacity = room.Capacity
                 })
                 .ToListAsync();
 
@@ -84,7 +90,10 @@ namespace GuestHouseBookingCore.Controllers
             if (bed == null) return NotFound("Bed not found");
 
             bed.BedLabel = dto.BedLabel ?? bed.BedLabel;
-            bed.Status = dto.Status ?? bed.Status;
+
+            if (dto.Status != null)
+                bed.Status = Enum.Parse<BedStatus>(dto.Status, true);
+
             bed.IsActive = dto.IsActive ?? bed.IsActive;
             bed.ModifiedDate = DateTime.UtcNow;
 
@@ -92,6 +101,36 @@ namespace GuestHouseBookingCore.Controllers
             await _bedRepo.SaveAsync();
 
             return Ok(new { Message = "Bed updated!" });
+        }
+
+        [HttpDelete("{bedId}")]
+        public async Task<IActionResult> DeleteBed(int bedId)
+        {
+            var bed = await _bedRepo.GetByIdAsync(bedId);
+            if (bed == null)
+                return NotFound("Bed not found");
+
+            var currentAdmin = await _getCurrentAdmin.GetCurrentAdminNameAsync();
+            var roomNumber = bed.Room?.RoomNumber ?? "Unknown";
+
+            // LOG ENTRY PEHLE HI BANAA LE (kyunki bed delete hone ke baad gayab ho jayega)
+            var log = new LogTable
+            {
+                LogType = "Bed Master",
+                LogAction = LogAction.Delete,
+                LogDetail = $"Bed HARD DELETED: {bed.BedLabel} (Room: {roomNumber}, BedId: {bed.BedId}) by {currentAdmin}",
+                LogDate = DateTime.UtcNow
+            };
+
+            // HARD DELETE — PURA RECORD DATABASE SE HATAA DEGA
+            _bedRepo.Delete(bed);
+            await _bedRepo.SaveAsync();
+
+            // Log save kar de
+            _context.LogTable.Add(log);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = "Bed permanently deleted!" });
         }
 
     }
