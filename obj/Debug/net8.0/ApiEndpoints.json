@@ -164,8 +164,28 @@
   },
   {
     "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
+    "Method": "GetLogs",
+    "RelativePath": "api/admin/bookings/logs",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
     "Method": "GetDashboardStats",
     "RelativePath": "api/admin/bookings/stats",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.AdminDashboardController",
+    "Method": "GetStats",
+    "RelativePath": "api/admin/dashboard-stats",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -249,6 +269,26 @@
         "IsRequired": true
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.AdminDashboardController",
+    "Method": "GetMonthlyTrend",
+    "RelativePath": "api/admin/monthly-trend",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.AdminDashboardController",
+    "Method": "GetPending",
+    "RelativePath": "api/admin/pending-bookings",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {

@@ -264,7 +264,9 @@ namespace GuestHouseBookingCore.Controllers
                     bookingId = b.BookingId,
                     userName = b.User.EmpName,
                     checkIn = b.StartDate.ToString("yyyy-MM-dd"),
+                    checkOut = b.EndDate.ToString("yyyy-MM-dd"),
                     status = b.Status.ToString(),
+                    guestHouseName = b.GuestHouse.GuestHouseName,
                     roomNumber = b.Room.RoomNumber,
                     bedLabel = b.Bed != null ? b.Bed.BedLabel : null
                 })
@@ -325,6 +327,26 @@ namespace GuestHouseBookingCore.Controllers
                 .ToListAsync();
 
             return Ok(history);
+        }
+
+        [HttpGet("logs")]
+        public async Task<IActionResult> GetLogs()
+        {
+            var logs = await _context.LogTable
+                .Include(l => l.User)
+                .Include(l => l.Booking)
+                .OrderByDescending(l => l.LogDate)
+                .Select(l => new {
+                    auditId = l.AuditId,
+                    bookingId = l.BookingId,
+                    userName = l.User != null ? l.User.EmpName : "System",
+                    action = l.LogAction.ToString(),
+                    detail = l.LogDetail,
+                    logDate = l.LogDate
+                })
+                .ToListAsync();
+
+            return Ok(new { data = logs });
         }
     }
 }
