@@ -154,6 +154,16 @@
   },
   {
     "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
+    "Method": "GetBookingHistory",
+    "RelativePath": "api/admin/bookings/history",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
     "Method": "GetDashboardStats",
     "RelativePath": "api/admin/bookings/stats",
     "HttpMethod": "GET",

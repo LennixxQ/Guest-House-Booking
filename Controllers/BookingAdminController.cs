@@ -299,5 +299,32 @@ namespace GuestHouseBookingCore.Controllers
 
             return Ok(new { data = stats });
         }
+
+        [HttpGet("history")]
+        public async Task<IActionResult> GetBookingHistory()
+        {
+            var history = await _context.Bookings
+                .Include(b => b.Bed).ThenInclude(b => b!.Room).ThenInclude(r => r!.GuestHouse)
+                .Include(b => b.User)
+                .Where(b => b.Status == BookingStatus.Accepted || b.Status == BookingStatus.Rejected)
+                .OrderByDescending(b => b.CreatedDate)
+                .Select(b => new {
+                    b.BookingId,
+                    guestHouseName = b.Bed!.Room!.GuestHouse!.GuestHouseName,
+                    city = b.Bed!.Room!.GuestHouse!.City,
+                    roomNumber = b.Bed!.Room!.RoomNumber,
+                    bedLabel = b.Bed!.BedLabel,
+                    guestName = b.User!.UserName,
+                    guestEmail = b.User!.Email,
+                    purposeOfVisit = b.PurposeOfVisit,
+                    checkInDate = b.StartDate,
+                    checkOutDate = b.EndDate,
+                    status = b.Status.ToString(),
+                    bookedOn = b.CreatedDate
+                })
+                .ToListAsync();
+
+            return Ok(history);
+        }
     }
 }

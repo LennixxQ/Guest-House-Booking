@@ -591,6 +591,18 @@
         }
       }
     },
+    "/api/admin/bookings/history": {
+      "get": {
+        "tags": [
+          "BookingAdmin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/admin/guest-houses": {
       "get": {
         "tags": [

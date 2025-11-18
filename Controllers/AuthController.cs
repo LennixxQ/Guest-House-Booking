@@ -154,6 +154,10 @@ namespace GuestHouseBookingCore.Controllers
             user.EmpName = dto.EmpName ?? user.EmpName;
             user.UserRole = dto.UserRole ?? user.UserRole;
             user.Email = dto.Email ?? user.Email;
+            if (dto.UserRole.HasValue)
+            {
+                user.UserRole = dto.UserRole.Value;
+            }
             user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
