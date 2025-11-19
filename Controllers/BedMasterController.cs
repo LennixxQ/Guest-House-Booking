@@ -55,7 +55,8 @@ namespace GuestHouseBookingCore.Controllers
                 LogType = "Bed Master",
                 LogAction = LogAction.Create,
                 LogDetail = $"New Bed Created: Label [{bed.BedLabel}], Status [{bed.Status}], Room [{room.RoomNumber}], CreatedBy [{adminName}]",
-                LogDate = DateTime.UtcNow
+                LogDate = DateTime.UtcNow,
+                CreatedBy = adminName
             });
             await _logRepo.SaveAsync();
 
@@ -135,7 +136,8 @@ namespace GuestHouseBookingCore.Controllers
                     $"Label [{oldLabel} → {newLabel}], " +
                     $"Status [{oldStatus} → {newStatus}], " +
                     $"Active [{oldActive} → {newActive}]",
-                LogDate = DateTime.UtcNow
+                LogDate = DateTime.UtcNow,
+                CreatedBy = adminName
             });
             await _logRepo.SaveAsync();
 
@@ -158,6 +160,7 @@ namespace GuestHouseBookingCore.Controllers
                 LogType = "Bed Master",
                 LogAction = LogAction.Delete,
                 LogDetail = $"Bed HARD DELETED: {bed.BedLabel} (Room: {roomNumber}, BedId: {bed.BedId}) by {currentAdmin}",
+                CreatedBy = currentAdmin,
                 LogDate = DateTime.UtcNow
             };
 

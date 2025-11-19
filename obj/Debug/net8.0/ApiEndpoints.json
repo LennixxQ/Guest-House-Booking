@@ -112,32 +112,6 @@
   },
   {
     "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
-    "Method": "GetPendingBookings",
-    "RelativePath": "api/admin/bookings/admin/pending",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "page",
-        "Type": "System.Int32",
-        "IsRequired": false
-      },
-      {
-        "Name": "pageSize",
-        "Type": "System.Int32",
-        "IsRequired": false
-      },
-      {
-        "Name": "search",
-        "Type": "System.String",
-        "IsRequired": false
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "GuestHouseBookingCore.Controllers.BookingAdminController",
     "Method": "CreateBooking",
     "RelativePath": "api/admin/bookings/create",
     "HttpMethod": "POST",

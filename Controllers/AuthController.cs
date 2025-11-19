@@ -1,4 +1,5 @@
 ﻿using GuestHouseBookingCore.DTO;
+using GuestHouseBookingCore.Helpers;
 using GuestHouseBookingCore.Models;
 using GuestHouseBookingCore.Repositories;
 using GuestHouseBookingCore.Services;
@@ -21,9 +22,10 @@ namespace GuestHouseBookingCore.Controllers
         private readonly IRepository<LogTable> _logRepo;
         private readonly RegisterService _registerService;
         private readonly EmailService _emailService;
+        private readonly GetCurrentAdmin _getCurrentAdmin;
 
         public AuthController(ApplicationDbContext context, JwtService jwtService, IUserRepository userRepo, 
-            IRepository<LogTable> logRepo, RegisterService registerService, EmailService emailService)
+            IRepository<LogTable> logRepo, RegisterService registerService, EmailService emailService, GetCurrentAdmin getCurrentAdmin)
         {
             _context = context;
             _jwtService = jwtService;
@@ -31,7 +33,7 @@ namespace GuestHouseBookingCore.Controllers
             _logRepo = logRepo;
             _registerService = registerService;
             _emailService = emailService;
-
+            _getCurrentAdmin = getCurrentAdmin;
         }
 
         [HttpPost("register")]
@@ -66,6 +68,7 @@ namespace GuestHouseBookingCore.Controllers
                 tempPassword: tempPassword
             );
 
+            var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
             // ➤ LOG THIS ACTION
             await _logRepo.AddAsync(new LogTable
             {
@@ -74,6 +77,7 @@ namespace GuestHouseBookingCore.Controllers
                 LogType = "Auth",
                 LogAction = LogAction.Create,
                 LogDetail = $"User Registered: {user.EmpName} ({user.Email})",
+                CreatedBy = adminName,
                 LogDate = DateTime.UtcNow
             });
             await _logRepo.SaveAsync();
@@ -194,6 +198,7 @@ namespace GuestHouseBookingCore.Controllers
             string newEmail = user.Email;
             string newRole = user.UserRole.ToString();
 
+            var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
             // LOG ENTRY
             await _logRepo.AddAsync(new LogTable
             {
@@ -205,6 +210,7 @@ namespace GuestHouseBookingCore.Controllers
                     $"User Updated: Name [{oldEmpName} → {newEmpName}], " +
                     $"Email [{oldEmail} → {newEmail}], " +
                     $"Role [{oldRole} → {newRole}]",
+                CreatedBy = adminName,
                 LogDate = DateTime.UtcNow
             });
 
@@ -214,7 +220,6 @@ namespace GuestHouseBookingCore.Controllers
         }
 
 
-        // 🔹 DELETE (only Admin)
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -223,27 +228,13 @@ namespace GuestHouseBookingCore.Controllers
             if (user == null) return NotFound();
             if (user.IsDeleted) return BadRequest("Already deleted");
 
-            // SOFT DELETE
             user.IsDeleted = true;
             user.DeletedAt = DateTime.UtcNow;
+
             _userRepo.Update(user);
+            await _userRepo.SaveAsync();
 
-            // LOG ADD KAR → AB _logRepo SE!
-            var log = new LogTable
-            {
-                UserId = user.UserId,
-                BookingId = null,
-                LogType = "User",
-                LogAction = LogAction.Delete,
-                LogDetail = $"[SOFT DELETE] {user.EmpName} ({user.Email}) at {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
-                LogDate = DateTime.UtcNow
-            };
-
-            await _logRepo.SaveAsync();
-
-            await _logRepo.AddAsync(log);      // AB YE CHALEGA!
-            await _logRepo.SaveAsync();        // YE BHI!
-
+            // ➤ LOG DELETE
             await _logRepo.AddAsync(new LogTable
             {
                 UserId = id,
@@ -254,12 +245,7 @@ namespace GuestHouseBookingCore.Controllers
             });
             await _logRepo.SaveAsync();
 
-
-            return Ok(new
-            {
-                Message = "User SOFT DELETED + LOGGED!",
-                UserId = id
-            });
+            return Ok(new { Message = "User Deleted Successfully!" });
         }
 
         [HttpPost("change-password")]
@@ -298,12 +284,15 @@ namespace GuestHouseBookingCore.Controllers
                 Console.WriteLine($"Password change email failed: {ex.Message}");
             }
 
+            var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
+
             await _logRepo.AddAsync(new LogTable
             {
                 UserId = userId,
                 LogType = "Auth",
                 LogAction = LogAction.Update,
                 LogDetail = $"Password Changed for User: {user.EmpName}",
+                CreatedBy = adminName,
                 LogDate = DateTime.UtcNow
             });
             await _logRepo.SaveAsync();
@@ -337,12 +326,15 @@ namespace GuestHouseBookingCore.Controllers
                     resetLink: resetLink
                 );
 
+                var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
+
                 await _logRepo.AddAsync(new LogTable
                 {
                     UserId = user.UserId,
                     LogType = "Auth",
                     LogAction = LogAction.Update,
                     LogDetail = $"Password Reset Requested for {user.Email}",
+                    CreatedBy = adminName,
                     LogDate = DateTime.UtcNow
                 });
                 await _logRepo.SaveAsync();
@@ -381,6 +373,8 @@ namespace GuestHouseBookingCore.Controllers
             }
             catch { }
 
+            var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
+
             // ➤ LOG THIS RESET
             await _logRepo.AddAsync(new LogTable
             {
@@ -388,6 +382,7 @@ namespace GuestHouseBookingCore.Controllers
                 LogType = "Auth",
                 LogAction = LogAction.Update,
                 LogDetail = $"Password Reset Successfully for {user.Email}",
+                CreatedBy = adminName,
                 LogDate = DateTime.UtcNow
             });
             await _logRepo.SaveAsync();

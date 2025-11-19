@@ -32,6 +32,14 @@ namespace GuestHouseBookingCore.Models
 
         [Required, MaxLength(500)]
         public string LogDetail { get; set; }
+
+        [MaxLength(100)]
+        public string? CreatedBy { get; set; }
+
+        [MaxLength(100)]
+        public string? ModifiedBy { get; set; }
+
         public DateTime LogDate { get; set; } = DateTime.UtcNow;
+
     }
 }

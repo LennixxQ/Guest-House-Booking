@@ -62,7 +62,8 @@ namespace GuestHouseBookingCore.Controllers
                     BedLabel = b.Bed.BedLabel,
                     CheckIn = b.StartDate.ToString("yyyy-MM-dd"),
                     CheckOut = b.EndDate.ToString("yyyy-MM-dd"),
-                    Status = b.Status.ToString()
+                    Status = b.Status.ToString(),
+                    rejectionReason = b.PurposeOfVisit
                 })
                 .Take(10)
                 .ToList();
