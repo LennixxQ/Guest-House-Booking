@@ -26,9 +26,17 @@ namespace GuestHouseBookingCore.Controllers
         private readonly EmailService _emailService;
         private readonly ILogService _logService;
 
-        public BookingAdminController(IRepository<Bookings> bookingRepo, IRepository<Users> userRepo, IRepository<GuestHouses> ghRepo,
-            IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor,
-            GetCurrentAdmin getCurrentAdmin, EmailService emailService, ILogService logService)
+        public BookingAdminController(
+            IRepository<Bookings> bookingRepo,
+            IRepository<Users> userRepo,
+            IRepository<GuestHouses> ghRepo,
+            IRepository<Rooms> roomRepo,
+            IRepository<Beds> bedRepo,
+            ApplicationDbContext context,
+            IHttpContextAccessor httpContextAccessor,
+            GetCurrentAdmin getCurrentAdmin,
+            EmailService emailService,
+            ILogService logService)
         {
             _bookingRepo = bookingRepo;
             _userRepo = userRepo;
@@ -42,12 +50,14 @@ namespace GuestHouseBookingCore.Controllers
             _logService = logService;
         }
 
-        // 1. GET ALL BOOKINGS (WITH FILTER)
+        // --------------------------------------------------------------------
+        // CREATE BOOKING (User Only)
+        // --------------------------------------------------------------------
         [HttpPost("create")]
         [Authorize(Roles = "Guest")]
         public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDto dto)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return Unauthorized();
 
@@ -68,7 +78,15 @@ namespace GuestHouseBookingCore.Controllers
             await _bookingRepo.AddAsync(booking);
             await _bookingRepo.SaveAsync();
 
-            // ADMIN KO EMAIL BHEJ
+            // LOG ENTRY
+            await _logService.LogBookingChangeAsync(
+                booking.BookingId,
+                userId,
+                LogAction.Create,
+                $"Booking Created: User [{user.EmpName}], Room [{dto.RoomId}], Bed [{dto.BedId}], Dates [{dto.StartDate:yyyy-MM-dd} → {dto.EndDate:yyyy-MM-dd}]"
+            );
+
+            // EMAIL ADMINS
             var adminEmails = await _context.Users
                 .Where(u => u.UserRole == Role.Admin && u.IsDeleted == false)
                 .Select(u => u.Email)
@@ -89,17 +107,15 @@ namespace GuestHouseBookingCore.Controllers
                         purpose: dto.PurposeOfVisit
                     );
                 }
-                catch (Exception ex)
-                {
-                    // LOG KAR — EMAIL FAIL HUA TO BHI BOOKING SAVE RAHE
-                    Console.WriteLine($"Admin email failed: {ex.Message}");
-                }
+                catch { }
             }
 
-            return Ok(new { Message = "Booking request sent! Admin has been notified.", BookingId = booking.BookingId });
+            return Ok(new { Message = "Booking request sent!", BookingId = booking.BookingId });
         }
 
-        // 2. APPROVE BOOKING
+        // --------------------------------------------------------------------
+        // ACCEPT BOOKING
+        // --------------------------------------------------------------------
         [HttpPut("{bookingId}/accept")]
         public async Task<IActionResult> AcceptBooking(int bookingId)
         {
@@ -132,50 +148,42 @@ namespace GuestHouseBookingCore.Controllers
             _bookingRepo.Update(booking);
             await _bookingRepo.SaveAsync();
 
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-            //Log
+            // LOG
             await _logService.LogBookingChangeAsync(
-                bookingId: booking.BookingId,
-                userId: adminId,
-                action: LogAction.Update,
-                detail: $"Booking approved by Admin"
-                );
+                booking.BookingId,
+                adminId,
+                LogAction.Update,
+                $"Booking Approved by {adminName}"
+            );
 
-            // AB USER EMAIL MIL GAYA!
+            // EMAIL USER
             var userEmail = booking.User?.Email;
-            if (string.IsNullOrEmpty(userEmail))
+            if (!string.IsNullOrEmpty(userEmail))
             {
-                return Ok(new { Message = "Booking accepted, but user email not found!", BookingId = bookingId });
-            }
-
-            try
-            {
-                await _emailService.SendBookingStatusEmail(
-                    toEmail: userEmail,
-                    userName: booking.User.EmpName,
-                    status: "Accepted",
-                    room: booking.Room?.RoomNumber ?? "N/A",
-                    bed: booking.Bed?.BedLabel ?? "N/A",
-                    checkIn: booking.StartDate,
-                    checkOut: booking.EndDate,
-                    adminName: adminName
-                );
-
-                return Ok(new { Message = "Booking accepted & EMAIL SENT!", EmailTo = userEmail });
-            }
-            catch (Exception ex)
-            {
-                return Ok(new
+                try
                 {
-                    Message = "Booking accepted, but EMAIL FAILED!",
-                    Error = ex.Message,
-                    EmailTo = userEmail
-                });
+                    await _emailService.SendBookingStatusEmail(
+                        toEmail: userEmail,
+                        userName: booking.User.EmpName,
+                        status: "Accepted",
+                        room: booking.Room?.RoomNumber ?? "N/A",
+                        bed: booking.Bed?.BedLabel ?? "N/A",
+                        checkIn: booking.StartDate,
+                        checkOut: booking.EndDate,
+                        adminName: adminName
+                    );
+                }
+                catch { }
             }
+
+            return Ok(new { Message = "Booking accepted!" });
         }
 
-        // 3. REJECT BOOKING WITH REASON
+        // --------------------------------------------------------------------
+        // REJECT BOOKING
+        // --------------------------------------------------------------------
         [HttpPut("{bookingId}/reject")]
         public async Task<IActionResult> RejectBooking(int bookingId, [FromBody] RejectBookingDto dto)
         {
@@ -198,16 +206,17 @@ namespace GuestHouseBookingCore.Controllers
             _bookingRepo.Update(booking);
             await _bookingRepo.SaveAsync();
 
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-            // LOG: Booking Rejected
+            // LOG
             await _logService.LogBookingChangeAsync(
-                bookingId: booking.BookingId,
-                userId: adminId,
-                action: LogAction.Update,
-                detail: $"Booking rejected by Admin: {dto.Reason}"
+                booking.BookingId,
+                adminId,
+                LogAction.Update,
+                $"Booking Rejected by {adminName}: {dto.Reason}"
             );
 
+            // EMAIL USER
             var userEmail = booking.User?.Email;
             if (!string.IsNullOrEmpty(userEmail))
             {
@@ -223,19 +232,19 @@ namespace GuestHouseBookingCore.Controllers
                     reason: dto.Reason
                 );
             }
-            return Ok(new { Message = "Booking rejected & email sent!", ModifiedBy = adminName, Reason = dto.Reason });
+
+            return Ok(new { Message = "Booking rejected!" });
         }
 
+        // --------------------------------------------------------------------
+        // PENDING BOOKINGS LIST
+        // --------------------------------------------------------------------
         [HttpGet("admin/pending")]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetPendingBookings(
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 10;
-
             var query = _bookingRepo.GetAll()
                 .Where(b => b.Status == BookingStatus.Pending)
                 .Include(b => b.User)
@@ -275,8 +284,10 @@ namespace GuestHouseBookingCore.Controllers
             return Ok(new { data = bookings, total });
         }
 
+        // --------------------------------------------------------------------
+        // DASHBOARD STATS
+        // --------------------------------------------------------------------
         [HttpGet("stats")]
-        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetDashboardStats()
         {
             var totalBookings = await _bookingRepo.GetAll().CountAsync();
@@ -284,24 +295,30 @@ namespace GuestHouseBookingCore.Controllers
 
             var totalBeds = await _bedRepo.GetAll().CountAsync(b => b.IsActive);
             var occupiedBeds = await _bookingRepo.GetAll()
-                .Where(b => b.Status == BookingStatus.Accepted && b.StartDate <= DateTime.Today && b.EndDate >= DateTime.Today
-                && b.BedId != null)
+                .Where(b => b.Status == BookingStatus.Accepted &&
+                            b.StartDate <= DateTime.Today &&
+                            b.EndDate >= DateTime.Today &&
+                            b.BedId != null)
                 .Select(b => b.BedId.Value)
                 .Distinct()
                 .CountAsync();
 
             var occupancyRate = totalBeds > 0 ? Math.Round((double)occupiedBeds / totalBeds * 100, 2) : 0;
 
-            var stats = new
+            return Ok(new
             {
-                totalBookings,
-                pendingBookings,
-                occupancyRate
-            };
-
-            return Ok(new { data = stats });
+                data = new
+                {
+                    totalBookings,
+                    pendingBookings,
+                    occupancyRate
+                }
+            });
         }
 
+        // --------------------------------------------------------------------
+        // BOOKING HISTORY (READ ONLY)
+        // --------------------------------------------------------------------
         [HttpGet("history")]
         public async Task<IActionResult> GetBookingHistory()
         {
@@ -310,7 +327,8 @@ namespace GuestHouseBookingCore.Controllers
                 .Include(b => b.User)
                 .Where(b => b.Status == BookingStatus.Accepted || b.Status == BookingStatus.Rejected)
                 .OrderByDescending(b => b.CreatedDate)
-                .Select(b => new {
+                .Select(b => new
+                {
                     b.BookingId,
                     guestHouseName = b.Bed!.Room!.GuestHouse!.GuestHouseName,
                     city = b.Bed!.Room!.GuestHouse!.City,
@@ -329,6 +347,9 @@ namespace GuestHouseBookingCore.Controllers
             return Ok(history);
         }
 
+        // --------------------------------------------------------------------
+        // GET LOGS
+        // --------------------------------------------------------------------
         [HttpGet("logs")]
         public async Task<IActionResult> GetLogs()
         {
@@ -336,7 +357,8 @@ namespace GuestHouseBookingCore.Controllers
                 .Include(l => l.User)
                 .Include(l => l.Booking)
                 .OrderByDescending(l => l.LogDate)
-                .Select(l => new {
+                .Select(l => new
+                {
                     auditId = l.AuditId,
                     bookingId = l.BookingId,
                     userName = l.User != null ? l.User.EmpName : "System",

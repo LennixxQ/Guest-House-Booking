@@ -17,13 +17,15 @@ namespace GuestHouseBookingCore.Controllers
         private readonly IRepository<Beds> _bedRepo;
         private readonly ApplicationDbContext _context;
         private readonly GetCurrentAdmin _getCurrentAdmin;
+        private readonly IRepository<LogTable> _logRepo;
 
-        public BedMasterController(IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context,
+        public BedMasterController(IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, IRepository<LogTable> logRepo, ApplicationDbContext context,
             GetCurrentAdmin getCurrentAdmin)
         {
             _roomRepo = roomRepo;
             _bedRepo = bedRepo;
             _context = context;
+            _logRepo = logRepo;
             _getCurrentAdmin = getCurrentAdmin;
         }
 
@@ -32,6 +34,7 @@ namespace GuestHouseBookingCore.Controllers
         {
             var room = await _roomRepo.GetByIdAsync(roomId);
             if (room == null) return NotFound("Room not found.");
+            var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
 
             var status = Enum.Parse<BedStatus>(dto.Status, true);
 
@@ -46,6 +49,15 @@ namespace GuestHouseBookingCore.Controllers
 
             await _bedRepo.AddAsync(bed);
             await _bedRepo.SaveAsync();
+
+            await _logRepo.AddAsync(new LogTable
+            {
+                LogType = "Bed Master",
+                LogAction = LogAction.Create,
+                LogDetail = $"New Bed Created: Label [{bed.BedLabel}], Status [{bed.Status}], Room [{room.RoomNumber}], CreatedBy [{adminName}]",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
 
             return Ok(new
             {
@@ -89,7 +101,17 @@ namespace GuestHouseBookingCore.Controllers
             var bed = await _bedRepo.GetByIdAsync(bedId);
             if (bed == null) return NotFound("Bed not found");
 
+            var adminName = await _getCurrentAdmin.GetCurrentAdminNameAsync();
+
             bed.BedLabel = dto.BedLabel ?? bed.BedLabel;
+
+            string oldLabel = bed.BedLabel;
+            string oldStatus = bed.Status.ToString();
+            bool oldActive = bed.IsActive;
+
+
+            if (dto.BedLabel != null)
+                bed.BedLabel = dto.BedLabel;
 
             if (dto.Status != null)
                 bed.Status = Enum.Parse<BedStatus>(dto.Status, true);
@@ -99,6 +121,23 @@ namespace GuestHouseBookingCore.Controllers
 
             _bedRepo.Update(bed);  // SYNC
             await _bedRepo.SaveAsync();
+
+            string newLabel = bed.BedLabel;
+            string newStatus = bed.Status.ToString();
+            bool newActive = bed.IsActive;
+
+            await _logRepo.AddAsync(new LogTable
+            {
+                LogType = "Bed Master",
+                LogAction = LogAction.Update,
+                LogDetail =
+                    $"Bed Updated by {adminName}: " +
+                    $"Label [{oldLabel} → {newLabel}], " +
+                    $"Status [{oldStatus} → {newStatus}], " +
+                    $"Active [{oldActive} → {newActive}]",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
 
             return Ok(new { Message = "Bed updated!" });
         }

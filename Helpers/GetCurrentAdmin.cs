@@ -23,5 +23,21 @@ namespace GuestHouseBookingCore.Helpers
             var user = await _userRepo.GetByEmailOrUsernameAsync(emailClaim);
             return user?.EmpName ?? emailClaim.Split('@')[0];
         }
+
+        public Task<string> GetCurrentAdminEmailAsync()
+        {
+            var email = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.Email)?.Value;
+            return Task.FromResult(email ?? "Unknown Email");
+        }
+
+        public Task<int?> GetCurrentAdminIdAsync()
+        {
+            var idClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (int.TryParse(idClaim, out var adminId))
+                return Task.FromResult<int?>(adminId);
+
+            return Task.FromResult<int?>(null);
+        }
     }
 }

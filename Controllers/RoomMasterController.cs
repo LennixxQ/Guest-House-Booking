@@ -17,18 +17,25 @@ namespace GuestHouseBookingCore.Controllers
         private readonly IRepository<Rooms> _roomRepo;
         private readonly ApplicationDbContext _context;
         private readonly GetCurrentAdmin _getCurrentAdmin;
+        private readonly ILogService _logService;
 
-        public RoomMasterController(IRepository<GuestHouses> ghRepo, IRepository<Rooms> roomRepo, ApplicationDbContext context,
-            GetCurrentAdmin getCurrentAdmin)
+        public RoomMasterController(
+            IRepository<GuestHouses> ghRepo,
+            IRepository<Rooms> roomRepo,
+            ApplicationDbContext context,
+            GetCurrentAdmin getCurrentAdmin,
+            ILogService logService)
         {
             _ghRepo = ghRepo;
             _roomRepo = roomRepo;
             _context = context;
             _getCurrentAdmin = getCurrentAdmin;
+            _logService = logService;
         }
 
-
-
+        // -------------------------------------------------------------------------
+        // ADD ROOM + LOG
+        // -------------------------------------------------------------------------
         [HttpPost("guesthouse/{guestHouseId}")]
         public async Task<IActionResult> AddRoom(int guestHouseId, [FromBody] AddRoomDto dto)
         {
@@ -47,6 +54,14 @@ namespace GuestHouseBookingCore.Controllers
             await _roomRepo.AddAsync(room);
             await _roomRepo.SaveAsync();
 
+            // LOG ENTRY
+            await _logService.LogRoomChangeAsync(
+                action: LogAction.Create,
+                detail: $"Room CREATED: {dto.RoomNumber}, Floor {dto.Floor}, Capacity {dto.Capacity}, GuestHouse: {gh.GuestHouseName}",
+                userId: null,
+                bookingId: null
+            );
+
             return Ok(new
             {
                 Message = "Room added!",
@@ -54,8 +69,15 @@ namespace GuestHouseBookingCore.Controllers
             });
         }
 
+        // -------------------------------------------------------------------------
+        // GET ROOMS
+        // -------------------------------------------------------------------------
         [HttpGet("guesthouse/{guestHouseId}")]
-        public async Task<IActionResult> GetRooms(int guestHouseId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
+        public async Task<IActionResult> GetRooms(
+            int guestHouseId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
         {
             var gh = await _ghRepo.GetByIdAsync(guestHouseId);
             if (gh == null) return NotFound("Guest House not found");
@@ -84,36 +106,64 @@ namespace GuestHouseBookingCore.Controllers
                 })
                 .ToListAsync();
 
-            // YE LINE ADD KAR DE → FRONTEND KO { data, total } CHAHIYE!
             return Ok(new { data = rooms, total });
         }
 
-        //UPDATE ROOM 
+        // -------------------------------------------------------------------------
+        // UPDATE ROOM + LOG (with old → new)
+        // -------------------------------------------------------------------------
         [HttpPut("{roomId}")]
         public async Task<IActionResult> UpdateRoom(int roomId, [FromBody] UpdateRoomDto dto)
         {
             var room = await _roomRepo.GetByIdAsync(roomId);
             if (room == null) return NotFound("Room not found");
 
+            string oldNumber = room.RoomNumber;
+            string oldFloor = room.Floor;
+            int oldCapacity = room.Capacity;
+
             room.RoomNumber = dto.RoomNumber ?? room.RoomNumber;
             room.Floor = dto.Floor ?? room.Floor;
             room.Capacity = dto.Capacity ?? room.Capacity;
 
-            _roomRepo.Update(room);  // SYNC
+            _roomRepo.Update(room);
             await _roomRepo.SaveAsync();
+
+            // LOG ENTRY
+            await _logService.LogRoomChangeAsync(
+                action: LogAction.Update,
+                detail:
+                    $"Room UPDATED: Number [{oldNumber} → {room.RoomNumber}], " +
+                    $"Floor [{oldFloor} → {room.Floor}], " +
+                    $"Capacity [{oldCapacity} → {room.Capacity}]",
+                userId: null,
+                bookingId: null
+            );
 
             return Ok(new { Message = "Room updated!" });
         }
 
-        // DELETE ROOM — SYNC DELETE
+        // -------------------------------------------------------------------------
+        // DELETE ROOM + LOG
+        // -------------------------------------------------------------------------
         [HttpDelete("{roomId}")]
         public async Task<IActionResult> DeleteRoom(int roomId)
         {
             var room = await _roomRepo.GetByIdAsync(roomId);
             if (room == null) return NotFound("Room not found");
 
-            _roomRepo.Delete(room);  // SYNC
+            string roomInfo = $"{room.RoomNumber} (Floor {room.Floor}, Capacity {room.Capacity})";
+
+            _roomRepo.Delete(room);
             await _roomRepo.SaveAsync();
+
+            // LOG ENTRY
+            await _logService.LogRoomChangeAsync(
+                action: LogAction.Delete,
+                detail: $"Room HARD DELETED → {roomInfo}",
+                userId: null,
+                bookingId: null
+            );
 
             return Ok(new { Message = "Room deleted!" });
         }

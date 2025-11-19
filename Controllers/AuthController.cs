@@ -66,6 +66,18 @@ namespace GuestHouseBookingCore.Controllers
                 tempPassword: tempPassword
             );
 
+            // ➤ LOG THIS ACTION
+            await _logRepo.AddAsync(new LogTable
+            {
+                UserId = user.UserId,
+                BookingId = null,
+                LogType = "Auth",
+                LogAction = LogAction.Create,
+                LogDetail = $"User Registered: {user.EmpName} ({user.Email})",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
+
             return Ok(new
             {
                 Message = "User registered! Auto username generated! + Email Sent",
@@ -85,6 +97,17 @@ namespace GuestHouseBookingCore.Controllers
                 return Unauthorized("Invalid credentials");
 
             var token = _jwtService.GenerateToken(user);
+
+            await _logRepo.AddAsync(new LogTable
+            {
+                UserId = user.UserId,
+                BookingId = null,
+                LogType = "Auth",
+                LogAction = LogAction.Create,
+                LogDetail = $"User Logged In: {user.EmpName}",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
 
             return Ok(new
             {
@@ -142,28 +165,54 @@ namespace GuestHouseBookingCore.Controllers
             return Ok(userList);
        }
 
-        // 🔹 UPDATE (only Admin can update any user)
         [HttpPut("{id}")]
-        [Authorize(Roles="Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserDto dto)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("User not Found.");
+            if (user == null)
+                return NotFound("User not found.");
 
+            // OLD VALUES CAPTURE
+            string oldEmpName = user.EmpName;
+            string oldEmail = user.Email;
+            string oldRole = user.UserRole.ToString();
+
+            // APPLY UPDATES
             user.UserName = dto.UserName ?? user.UserName;
             user.EmpName = dto.EmpName ?? user.EmpName;
-            user.UserRole = dto.UserRole ?? user.UserRole;
             user.Email = dto.Email ?? user.Email;
             if (dto.UserRole.HasValue)
-            {
                 user.UserRole = dto.UserRole.Value;
-            }
+
             user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
 
+            // NEW VALUES CAPTURE
+            string newEmpName = user.EmpName;
+            string newEmail = user.Email;
+            string newRole = user.UserRole.ToString();
+
+            // LOG ENTRY
+            await _logRepo.AddAsync(new LogTable
+            {
+                UserId = id,
+                BookingId = null,
+                LogType = "User",
+                LogAction = LogAction.Update,
+                LogDetail =
+                    $"User Updated: Name [{oldEmpName} → {newEmpName}], " +
+                    $"Email [{oldEmail} → {newEmail}], " +
+                    $"Role [{oldRole} → {newRole}]",
+                LogDate = DateTime.UtcNow
+            });
+
+            await _logRepo.SaveAsync();
+
             return Ok(new { Message = "User Updated Successfully!!" });
         }
+
 
         // 🔹 DELETE (only Admin)
         [HttpDelete("{id}")]
@@ -190,8 +239,21 @@ namespace GuestHouseBookingCore.Controllers
                 LogDate = DateTime.UtcNow
             };
 
+            await _logRepo.SaveAsync();
+
             await _logRepo.AddAsync(log);      // AB YE CHALEGA!
             await _logRepo.SaveAsync();        // YE BHI!
+
+            await _logRepo.AddAsync(new LogTable
+            {
+                UserId = id,
+                LogType = "User",
+                LogAction = LogAction.Delete,
+                LogDetail = $"User Soft Deleted: {user.EmpName} ({user.Email})",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
+
 
             return Ok(new
             {
@@ -236,6 +298,16 @@ namespace GuestHouseBookingCore.Controllers
                 Console.WriteLine($"Password change email failed: {ex.Message}");
             }
 
+            await _logRepo.AddAsync(new LogTable
+            {
+                UserId = userId,
+                LogType = "Auth",
+                LogAction = LogAction.Update,
+                LogDetail = $"Password Changed for User: {user.EmpName}",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
+
             return Ok(new { Message = "Password changed successfully! A confirmation email has been sent." });
         }
 
@@ -264,6 +336,16 @@ namespace GuestHouseBookingCore.Controllers
                     userName: user.EmpName,
                     resetLink: resetLink
                 );
+
+                await _logRepo.AddAsync(new LogTable
+                {
+                    UserId = user.UserId,
+                    LogType = "Auth",
+                    LogAction = LogAction.Update,
+                    LogDetail = $"Password Reset Requested for {user.Email}",
+                    LogDate = DateTime.UtcNow
+                });
+                await _logRepo.SaveAsync();
             }
             catch { }
 
@@ -298,6 +380,17 @@ namespace GuestHouseBookingCore.Controllers
                 await _emailService.SendPasswordChangedEmail(user.Email, user.EmpName);
             }
             catch { }
+
+            // ➤ LOG THIS RESET
+            await _logRepo.AddAsync(new LogTable
+            {
+                UserId = user.UserId,
+                LogType = "Auth",
+                LogAction = LogAction.Update,
+                LogDetail = $"Password Reset Successfully for {user.Email}",
+                LogDate = DateTime.UtcNow
+            });
+            await _logRepo.SaveAsync();
 
             return Ok(new { Message = "Password reset successfully!" });
         }

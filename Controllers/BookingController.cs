@@ -26,9 +26,19 @@ namespace GuestHouseBookingCore.Controllers
         private readonly EmailService _emailService;
         private readonly GetAvailableBeds _getAvailableBeds;
         private readonly ILogService _logService;
-        public BookingController(IRepository<Bookings> bookingRepo, IRepository<Users> userRepo, IRepository<GuestHouses> ghRepo,
-            IRepository<Rooms> roomRepo, IRepository<Beds> bedRepo, ApplicationDbContext context, IHttpContextAccessor httpContextAccessor,
-            GetCurrentAdmin getCurrentAdmin, EmailService emailService, GetAvailableBeds getAvailableBeds, ILogService logService)
+
+        public BookingController(
+            IRepository<Bookings> bookingRepo,
+            IRepository<Users> userRepo,
+            IRepository<GuestHouses> ghRepo,
+            IRepository<Rooms> roomRepo,
+            IRepository<Beds> bedRepo,
+            ApplicationDbContext context,
+            IHttpContextAccessor httpContextAccessor,
+            GetCurrentAdmin getCurrentAdmin,
+            EmailService emailService,
+            GetAvailableBeds getAvailableBeds,
+            ILogService logService)
         {
             _bookingRepo = bookingRepo;
             _userRepo = userRepo;
@@ -43,52 +53,51 @@ namespace GuestHouseBookingCore.Controllers
             _logService = logService;
         }
 
+        // -----------------------------------------------------------------------------------
+        // CREATE BOOKING
+        // -----------------------------------------------------------------------------------
         [HttpPost("create")]
         public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDto dto)
         {
-            // DTO Validation
             if (!TryValidateModel(dto))
                 return BadRequest(ModelState);
 
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return Unauthorized();
 
-            // === VALIDATE GUEST HOUSE ===
+            // === VALIDATE GH ===
             var gh = await _ghRepo.GetByIdAsync(dto.GuestHouseId);
             if (gh == null || !gh.IsAvailable)
                 return BadRequest("Guest House is not available.");
 
             // === VALIDATE ROOM ===
-            var rm = await _roomRepo.GetByIdAsync(dto.RoomId);
-            if (rm == null || rm.GuestHouseId != dto.GuestHouseId)
+            var room = await _roomRepo.GetByIdAsync(dto.RoomId);
+            if (room == null || room.GuestHouseId != dto.GuestHouseId)
                 return BadRequest("Invalid room.");
 
-            var actualBedsCount = await _bedRepo.GetAll()
+            var roomBedsCount = await _bedRepo.GetAll()
                 .CountAsync(b => b.RoomId == dto.RoomId && b.IsActive);
 
-            if (actualBedsCount != rm.Capacity)
-                return BadRequest($"Room capacity mismatch. Expected: {rm.Capacity}, Found: {actualBedsCount} beds.");
+            if (roomBedsCount != room.Capacity)
+                return BadRequest($"Room capacity mismatch. Room capacity = {room.Capacity}, but active beds = {roomBedsCount}");
 
-            if (actualBedsCount == 0)
-                return BadRequest("No active beds in this room.");
+            if (roomBedsCount == 0)
+                return BadRequest("No active beds available in this room.");
 
-            // === VALIDATE BED (if provided) ===
-            Beds? bd = null;
+            // === VALIDATE BED IF SELECTED ===
+            Beds? bed = null;
             if (dto.BedId.HasValue)
             {
-                bd = await _bedRepo.GetByIdAsync(dto.BedId.Value);
-                if (bd == null || bd.RoomId != dto.RoomId || !bd.IsActive)
-                    return BadRequest("Bed is not available.");
+                bed = await _bedRepo.GetByIdAsync(dto.BedId.Value);
+                if (bed == null || bed.RoomId != dto.RoomId || !bed.IsActive)
+                    return BadRequest("Invalid or inactive bed.");
             }
 
-            if (_getAvailableBeds == null)
-                return StatusCode(500, "Availability service not available.");
-
-            // === CHECK BED AVAILABILITY ===
             var availableBeds = await _getAvailableBeds.GetAvailableBedsLogic(dto.RoomId, dto.StartDate, dto.EndDate);
+
             if (dto.BedId.HasValue && !availableBeds.Any(b => b.BedId == dto.BedId.Value && b.IsAvailable))
-                return BadRequest("Selected bed is not available for these dates.");
+                return BadRequest("Selected bed is not available for given dates.");
 
             // === CREATE BOOKING ===
             var booking = new Bookings
@@ -108,51 +117,47 @@ namespace GuestHouseBookingCore.Controllers
             await _bookingRepo.AddAsync(booking);
             await _bookingRepo.SaveAsync();
 
-
-            //Log
+            // === LOGGING ENTRY ===
             await _logService.LogBookingChangeAsync(
                 bookingId: booking.BookingId,
                 userId: userId,
                 action: LogAction.Create,
-                detail: $"Booking created for {user.EmpName} in Room {rm.RoomNumber}, Bed: {bd?.BedLabel ?? "N/A"}"
-                );
+                detail: $"Booking Created by {user.EmpName} | GH: {gh.GuestHouseName}, Room: {room.RoomNumber}, Bed: {bed?.BedLabel ?? "N/A"}, Dates: {dto.StartDate:yyyy-MM-dd} → {dto.EndDate:yyyy-MM-dd}"
+            );
 
-            // === ADMIN EMAIL ===
+            // === SEND ADMIN EMAIL ===
             var adminEmails = await _context.Users
                 .Where(u => u.UserRole == Role.Admin && !u.IsDeleted)
                 .Select(u => u.Email)
                 .ToListAsync();
 
-            if (adminEmails.Any())
+            foreach (var adminEmail in adminEmails)
             {
-                foreach (var email in adminEmails)
+                try
                 {
-                    try
-                    {
-                        await _emailService.SendNewBookingAlertToAdmin(
-                            toEmail: email,
-                            userName: user.EmpName,
-                            guestHouse: gh.GuestHouseName,
-                            room: rm.RoomNumber,
-                            bed: bd?.BedLabel ?? "N/A",
-                            checkIn: dto.StartDate,
-                            checkOut: dto.EndDate,
-                            purpose: dto.PurposeOfVisit
-                        );
-                    }
-                    catch { }
+                    await _emailService.SendNewBookingAlertToAdmin(
+                        toEmail: adminEmail,
+                        userName: user.EmpName,
+                        guestHouse: gh.GuestHouseName,
+                        room: room.RoomNumber,
+                        bed: bed?.BedLabel ?? "N/A",
+                        checkIn: dto.StartDate,
+                        checkOut: dto.EndDate,
+                        purpose: dto.PurposeOfVisit
+                    );
                 }
+                catch { }
             }
 
-            // === USER EMAIL (PENDING) ===
+            // === USER EMAIL ===
             try
             {
                 await _emailService.SendBookingPendingEmailToUser(
                     toEmail: user.Email,
                     userName: user.EmpName,
                     guestHouse: gh.GuestHouseName,
-                    room: rm.RoomNumber,
-                    bed: bd?.BedLabel ?? "N/A",
+                    room: room.RoomNumber,
+                    bed: bed?.BedLabel ?? "N/A",
                     checkIn: dto.StartDate,
                     checkOut: dto.EndDate,
                     purpose: dto.PurposeOfVisit
@@ -162,24 +167,26 @@ namespace GuestHouseBookingCore.Controllers
 
             return Ok(new
             {
-                Message = "Booking request sent! Admin has been notified.",
+                Message = "Booking request sent!",
                 BookingId = booking.BookingId
             });
         }
 
+        // -----------------------------------------------------------------------------------
+        // AVAILABLE BEDS
+        // -----------------------------------------------------------------------------------
         [HttpPost("available-beds")]
-        [Authorize(Policy = "AdminOrGuest")]
         public async Task<IActionResult> GetAvailableBeds([FromBody] AvailableBedsRequestDto request)
         {
             if (request.GuestHouseId <= 0 || request.RoomId <= 0 || request.StartDate >= request.EndDate)
                 return BadRequest("Invalid parameters.");
 
-            var allBeds = _bedRepo.GetAll()
+            var allBeds = await _bedRepo.GetAll()
                 .Where(b => b.RoomId == request.RoomId && b.IsActive)
-                .Select(b => new { b.BedId, b.BedLabel });
+                .Select(b => new { b.BedId, b.BedLabel })
+                .ToListAsync();
 
-            var allBedsList = await allBeds.ToListAsync();
-            if (!allBedsList.Any())
+            if (!allBeds.Any())
                 return Ok(new List<AvailableBedsDto>());
 
             var bookedBedIds = await _context.Bookings
@@ -192,7 +199,7 @@ namespace GuestHouseBookingCore.Controllers
                 .Select(b => b.BedId.Value)
                 .ToListAsync();
 
-            var availableBeds = allBedsList
+            var available = allBeds
                 .Select(b => new AvailableBedsDto
                 {
                     BedId = b.BedId,
@@ -202,7 +209,7 @@ namespace GuestHouseBookingCore.Controllers
                 .OrderBy(b => b.BedLabel)
                 .ToList();
 
-            return Ok(availableBeds);
+            return Ok(available);
         }
     }
 }
